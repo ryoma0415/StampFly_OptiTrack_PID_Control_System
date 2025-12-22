@@ -9,6 +9,12 @@
     "enable_i_control": true
   },
   "target_position": { "x": 0.0, "y": 0.0 },
+  "trajectory": {
+    "radius": 0.3,
+    "period_sec": 30.0,
+    "start_hold_sec": 5.0,
+    "clockwise": true
+  },
   "rigid_body_id": 1,
   "control": {
     "rate_hz": 100,

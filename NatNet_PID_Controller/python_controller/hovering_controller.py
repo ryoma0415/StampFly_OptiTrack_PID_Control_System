@@ -169,6 +169,7 @@ class HoveringController:
             float(target_position.get("x", 0.0)),
             float(target_position.get("y", 0.0))
         )
+        self.last_target_position = self.target_position
         
         # NatNetクライアント
         self.natnet_client = None
@@ -271,6 +272,22 @@ class HoveringController:
             resolved[axis] = (axis_index[src_axis], sign)
 
         return resolved
+
+    def get_target_position(self, frame_time_monotonic=None):
+        """現在の目標位置を取得（デフォルトは固定目標）"""
+        return self.target_position
+
+    def get_target_description(self):
+        """目標の説明文を返す（表示用）"""
+        return f"目標位置: ({self.target_position[0]:.3f}, {self.target_position[1]:.3f}) m"
+
+    def on_control_start(self):
+        """制御開始時のフック（サブクラスで使用）"""
+        return
+
+    def get_active_mode_message(self):
+        """制御中の表示文を返す（表示用）"""
+        return "原点ホバリング中... (stopで着陸)"
         
     def close_log_file(self):
         """ログファイルを安全にクローズ"""
@@ -309,6 +326,7 @@ class HoveringController:
                 'pos_x', 'pos_y', 'pos_z',
                 'raw_pos_x', 'raw_pos_y', 'raw_pos_z',  # 生データ
                 'error_x', 'error_y',
+                'target_x', 'target_y',
                 'roll_ref_rad', 'pitch_ref_rad',
                 'roll_ref_deg', 'pitch_ref_deg',
                 'pid_x_p', 'pid_x_i', 'pid_x_d',
@@ -342,6 +360,7 @@ class HoveringController:
     
     def log_data(self, pos_x, pos_y, pos_z, error_x, error_y,
                   roll_ref, pitch_ref, send_success, loop_time,
+                  target_position=None,
                   filter_result=None, is_data_valid=True,
                   confidence=1.0, data_source=None,
                   frame_dt=None,
@@ -437,6 +456,19 @@ class HoveringController:
             if frame_dt is not None:
                 frame_dt_ms_str = f"{frame_dt * 1000:.3f}"
 
+            if target_position is None:
+                target_position = self.last_target_position
+
+            target_x = ""
+            target_y = ""
+            if target_position:
+                try:
+                    target_x = f"{float(target_position[0]):.6f}"
+                    target_y = f"{float(target_position[1]):.6f}"
+                except (TypeError, ValueError, IndexError):
+                    target_x = ""
+                    target_y = ""
+
             # データ行作成
             row = [
                 datetime.now().isoformat(),  # timestamp
@@ -444,6 +476,7 @@ class HoveringController:
                 f"{pos_x:.6f}", f"{pos_y:.6f}", f"{pos_z:.6f}",  # filtered position
                 f"{raw_x:.6f}", f"{raw_y:.6f}", f"{raw_z:.6f}",  # raw position
                 f"{error_x:.6f}", f"{error_y:.6f}",  # errors
+                target_x, target_y,
                 f"{roll_ref:.6f}", f"{pitch_ref:.6f}",  # rad
                 f"{roll_ref * 180 / 3.14159:.3f}", f"{pitch_ref * 180 / 3.14159:.3f}",  # deg
                 f"{pid_components['x']['p']:.6f}", f"{pid_components['x']['i']:.6f}", f"{pid_components['x']['d']:.6f}",
@@ -747,8 +780,9 @@ class HoveringController:
             return
 
         pos_x, pos_y, _ = filtered_position
-        error_x = self.target_position[0] - pos_x
-        error_y = self.target_position[1] - pos_y
+        target_x, target_y = self.get_target_position(frame_time_monotonic)
+        error_x = target_x - pos_x
+        error_y = target_y - pos_y
 
         confidence = 0.0
         is_data_valid = False
@@ -788,6 +822,7 @@ class HoveringController:
             self.last_pitch_ref = pitch_ref
             self.last_error_x = error_x
             self.last_error_y = error_y
+            self.last_target_position = (target_x, target_y)
             self.last_control_confidence = confidence
             self.last_control_data_valid = is_data_valid
             
@@ -1031,6 +1066,7 @@ class HoveringController:
                     pitch_ref = self.last_pitch_ref
                     error_x = self.last_error_x
                     error_y = self.last_error_y
+                    target_position = self.last_target_position
                     confidence = self.last_control_confidence
                     is_data_valid = self.last_control_data_valid
                     frame_dt = self.last_frame_dt
@@ -1058,6 +1094,7 @@ class HoveringController:
                     loop_time = time.monotonic() - loop_start
                     self.log_data(pos_x, pos_y, pos_z, error_x, error_y,
                                   roll_ref, pitch_ref, success, loop_time,
+                                  target_position,
                                   filter_result, is_data_valid,
                                   confidence, data_source,
                                   frame_dt=frame_dt,
@@ -1096,6 +1133,7 @@ class HoveringController:
                     loop_time = time.monotonic() - loop_start
                     self.log_data(0.0, 0.0, 0.0, 0.0, 0.0,
                                   0.0, 0.0, success, loop_time,
+                                  target_position,
                                   None, False, confidence=0.0, data_source="none",
                                   frame_dt=None,
                                   command_sequence=sequence,
@@ -1228,13 +1266,14 @@ class HoveringController:
             time.sleep(0.5)  # 短い待機
             self.control_active = True  # 制御開始
             self.is_flying = True
+            self.on_control_start()
             print("   ✓ ホバリング制御開始")
             
             if self.current_position:
-                print(f"   目標位置: (0.000, 0.000) m")
+                print(f"   {self.get_target_description()}")
                 print(f"   現在位置: ({self.current_position[0]:.3f}, {self.current_position[1]:.3f}, {self.current_position[2]:.3f}) m")
             
-            print("\n原点ホバリング中... (stopで着陸)")
+            print(f"\n{self.get_active_mode_message()}")
         else:
             print("   ✗ 離陸コマンド送信失敗")
             self.stop_hovering()
