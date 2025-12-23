@@ -45,8 +45,7 @@ DEFAULT_CONFIG = {
     "control": {
         "rate_hz": 100,
         "frame_hold_ms": 300,
-        "confidence_zero_threshold": 0.2,
-        "confidence_scale_threshold": 0.99
+        "confidence_zero_threshold": 0.2
     },
     "filter": {
         "window_size": 5,
@@ -83,9 +82,6 @@ class HoveringController:
         self.frame_hold_timeout = max(0.0, hold_ms / 1000.0)
         self.confidence_zero_threshold = float(
             control_config.get("confidence_zero_threshold", 0.2)
-        )
-        self.confidence_scale_threshold = float(
-            control_config.get("confidence_scale_threshold", 0.99)
         )
 
         self.axis_map = self.parse_coordinate_transform(

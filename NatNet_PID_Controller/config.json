@@ -19,8 +19,7 @@
   "control": {
     "rate_hz": 100,
     "frame_hold_ms": 300,
-    "confidence_zero_threshold": 0.2,
-    "confidence_scale_threshold": 0.99
+    "confidence_zero_threshold": 0.2
   },
   "filter": {
     "window_size": 5,
