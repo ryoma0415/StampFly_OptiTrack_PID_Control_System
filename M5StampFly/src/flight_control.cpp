@@ -185,7 +185,7 @@ const uint32_t WAIT_TIME = 3000;     // 待機時間 3秒（センサーキャ�
 const uint32_t MAX_FLIGHT_TIME = 120000; // 最大飛行時間 120秒（安全のため2分に延長）
 // dreoneX : 0.2f
 // drone test : 0.2f
-const float TARGET_ALTITUDE = 0.2f;  // 目標高度 50cm
+const float TARGET_ALTITUDE = 0.3f;  // 目標高度 30cm
 
 // PID object and etc.
 PID p_pid;
@@ -210,7 +210,7 @@ uint8_t Alt_flag       = 0;
 float Z_dot_ref = 0.0f;
 
 // 高度目標
-const float Alt_ref0   = 0.5f;
+const float Alt_ref0   = 0.3f;
 volatile float Alt_ref = Alt_ref0;
 
 uint8_t ahrs_reset_flag      = 0;
@@ -313,7 +313,7 @@ void loop_400Hz(void) {
 
         // 自動飛行シーケンス制御
         if (auto_state == AUTO_TAKEOFF) {
-            // 離陸中 - 50cmまで上昇
+            // 離陸中 - 30cmまで上昇
             if (Altitude2 >= TARGET_ALTITUDE - 0.05f) {
                 auto_state = AUTO_HOVER;
                 phase_start_time = millis();
@@ -375,8 +375,9 @@ void loop_400Hz(void) {
                 esp_now_command_received = false;  // フラグリセット
                 auto_state = AUTO_TAKEOFF;
                 phase_start_time = millis();
-                Alt_ref = TARGET_ALTITUDE;  // 目標高度50cm
-                USBSerial.println("Start command received: Takeoff to 50cm");
+                auto_timer = millis();
+                Alt_ref = TARGET_ALTITUDE;  // 目標高度30cm
+                USBSerial.println("Start command received: Takeoff to 30cm");
             } else {
                 esp_now_command_received = false;  // 不正なコマンドは無視
             }
@@ -402,7 +403,9 @@ void loop_400Hz(void) {
         Duty_rl.reset();
     } else if (auto_state == AUTO_LANDING) {
         if (auto_landing() == 1) {
-            auto_state = AUTO_COMPLETE;
+            auto_state = AUTO_WAIT;
+            esp_now_command_received = false;
+            received_command[0] = '\0';
             USBSerial.println("Auto flight: Landed successfully");
         }
 
