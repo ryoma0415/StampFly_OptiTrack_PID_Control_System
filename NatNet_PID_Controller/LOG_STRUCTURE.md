@@ -60,7 +60,7 @@
 | --- | --- | --- |
 | `is_outlier` | 0/1 | フィルタが外れ値と判定したかどうか。 |
 | `used_prediction` | 0/1 | 生データではなく予測位置を使用したかどうか。 |
-| `confidence` | float (0-1) | フィルタの信頼度スコア(角度指令の減衰に使用)。 |
+| `confidence` | float (0-1) | フィルタの信頼度スコア(制御データの有効/無効判定に使用)。 |
 | `consecutive_outliers` | int | 連続外れ値フレーム数。 |
 | `data_valid` | 0/1 | PID更新に有効と判断されたかどうか(外れ値/トラッキング/フレーム遅延を考慮)。 |
 | `data_source` | string | データ由来: `"rigid_body"`, `"markers"`, `"none"`など。 |
