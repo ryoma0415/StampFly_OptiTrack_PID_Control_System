@@ -45,8 +45,7 @@ DEFAULT_CONFIG = {
     "control": {
         "rate_hz": 100,
         "frame_hold_ms": 300,
-        "confidence_zero_threshold": 0.2,
-        "confidence_scale_threshold": 0.99
+        "confidence_zero_threshold": 0.2
     },
     "filter": {
         "window_size": 5,
@@ -83,9 +82,6 @@ class HoveringController:
         self.frame_hold_timeout = max(0.0, hold_ms / 1000.0)
         self.confidence_zero_threshold = float(
             control_config.get("confidence_zero_threshold", 0.2)
-        )
-        self.confidence_scale_threshold = float(
-            control_config.get("confidence_scale_threshold", 0.99)
         )
 
         self.axis_map = self.parse_coordinate_transform(
@@ -785,14 +781,16 @@ class HoveringController:
         error_y = target_y - pos_y
 
         confidence = 0.0
+        confidence_valid = False
         is_data_valid = False
         consecutive_outliers = 0
 
         if filter_result:
             confidence = filter_result.get('confidence', 1.0)
             consecutive_outliers = filter_result.get('consecutive_outliers', 0)
+            confidence_valid = confidence >= self.confidence_zero_threshold
             is_data_valid = (
-                confidence > 0.1 and
+                confidence_valid and
                 not filter_result.get('is_outlier', False) and
                 filter_result.get('tracking_valid', True)
             )
@@ -810,12 +808,9 @@ class HoveringController:
             error_x, error_y, frame_time_monotonic, is_data_valid
         )
 
-        if confidence < self.confidence_zero_threshold:
+        if not confidence_valid:
             roll_ref = 0.0
             pitch_ref = 0.0
-        elif confidence < self.confidence_scale_threshold:
-            roll_ref *= confidence
-            pitch_ref *= confidence
 
         with self.position_lock:
             self.last_roll_ref = roll_ref
